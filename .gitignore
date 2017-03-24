@@ -1,0 +1,4 @@
+*.pyc
+*.DC_Store
+__pycache__
+.idea
