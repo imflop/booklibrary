@@ -1,10 +1,15 @@
 import os
 from datetime import datetime
+from makecelery import make_celery
 from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_restplus import Resource, Api, fields, reqparse
+from celery.task import periodic_task
+from celery.schedules import crontab
+
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
 
 # Settings
 # ------------------------------------------------------------------------------
@@ -14,6 +19,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SWAGGER_UI_DOC_EXPANSION'] = 'list'
 app.config['RESTPLUS_VALIDATE'] = True
 app.config['RESTPLUS_MASK_SWAGGER'] = False
+app.config.update(
+    CELERY_BROKER_URL='redis://localhost:6379',
+    CELERY_RESULT_BACKEND='redis://localhost:6379'
+)
+celery = make_celery(app)
 db = SQLAlchemy(app)
 api = Api(app, version='1.0', title='Book Library API',
           description='Just for test')
@@ -25,6 +35,10 @@ class Author(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(128))
     last_name = db.Column(db.String(128))
+
+    def __init__(self, fn, ln):
+        self.first_name = fn
+        self.last_name = ln
 
     def __repr__(self):
         return "<Author %r>" % self.first_name
@@ -47,6 +61,19 @@ class Books(db.Model):
 
     def __repr__(self):
         return "<Book %r>" % self.title
+
+
+class Stats(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    count_of_author = db.Column(db.Integer)
+    count_of_book = db.Column(db.Integer)
+
+    def __init__(self, ca, cb):
+        self.count_of_author = ca
+        self.count_of_book = cb
+
+    def __repr__(self):
+        return "<Statistics %r>" % self.count_of_author
 
 
 # Serializers
@@ -78,6 +105,12 @@ pagination = api.model('Page result', {
 
 page_of_book = api.inherit('Page of books', pagination, {
     'items': fields.List(fields.Nested(book))
+})
+
+statistics = api.model('Statistics result', {
+    'id': fields.Integer(description='Unique id'),
+    'count_of_author': fields.Integer(description='Count of authors'),
+    'count_of_book': fields.Integer(description='Count of book')
 })
 
 
@@ -138,6 +171,26 @@ def delete_author(author_id):
     db.session.delete(the_author)
     db.session.commit()
 
+
+def save_stats():
+    print('Ready to save data...')
+    author_count, book_count = None, None
+    the_author = db.session.query(Author, db.func.count(Author.id))
+    the_books = db.session.query(Books, db.func.count(Books.id))
+
+    # лютый трешак, очень торопислся
+    for _, ac in the_author:
+        author_count = ac
+    for _, bc in the_books:
+        book_count = bc
+
+    if author_count and book_count is not None:
+        print('Save data!')
+        the_stats = Stats(author_count, book_count)
+        db.session.add(the_stats)
+        db.session.commit()
+    else:
+        print('Nothing to save!')
 
 # Endpoints
 # ------------------------------------------------------------------------------
@@ -261,6 +314,23 @@ class AuthorItem(Resource):
         """
         update_author(_id, request.json)
         return None, 204
+
+
+@ns.route('/statistics')
+class Statistics(Resource):
+    @api.marshal_with(statistics)
+    def get(self):
+        """
+        Вычитываем стату по нашей библиотеке
+        :return: стата
+        """
+        result = Stats.query.all()
+        return result
+
+
+@periodic_task(run_every=(crontab(minute=5)))
+def stats_task():
+    save_stats()
 
 
 if __name__ == '__main__':
