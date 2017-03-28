@@ -6,6 +6,8 @@
 $ virtualenv --python=python3 venv
 $ cd venv
 $ source bin/activate
+$ git clone https://github.com/imflop/booklibrary
+$ cd booklibrary
 $ pip install -r requirements.txt
 $ python myapp.py
 ```

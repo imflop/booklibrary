@@ -186,7 +186,11 @@ def save_stats():
 
     if author_count and book_count is not None:
         print('Save data!')
-        the_stats = Stats(author_count, book_count)
+        # не плодим записи в таблице
+        # the_stats = Stats(author_count, book_count)
+        the_stats = Stats.query.filter(Stats.id == 1).one()
+        the_stats.count_of_author = author_count
+        the_stats.count_of_book = book_count
         db.session.add(the_stats)
         db.session.commit()
     else:
