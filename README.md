@@ -2,7 +2,7 @@
 
 Запуск приложения (в БД есть пара записей для тестов):
 
-```python
+```bash
 $ virtualenv --python=python3 venv
 $ cd venv
 $ source bin/activate
@@ -17,7 +17,7 @@ SwaggerUI покажет все доступные эндпоинты
 
 Заупск celery (в новой вкладке терминала) для задания со звездочкой
 
-```python
+```bash
 $ celery -A myapp.celery worker -B --concurrency=1
 ```
 
