@@ -174,23 +174,26 @@ def delete_author(author_id):
 
 def save_stats():
     print('Ready to save data...')
-    author_count, book_count = None, None
-    the_author = db.session.query(Author, db.func.count(Author.id))
-    the_books = db.session.query(Books, db.func.count(Books.id))
+    the_author = db.session.query(Author, db.func.count(Author.id)).one()
+    the_books = db.session.query(Books, db.func.count(Books.id)).one()
 
     # лютый трешак, очень торопислся
-    for _, ac in the_author:
-        author_count = ac
-    for _, bc in the_books:
-        book_count = bc
+    # for _, ac in the_author:
+    #     author_count = ac
+    # for _, bc in the_books:
+    #     book_count = bc
 
-    if author_count and book_count is not None:
+    if the_author[1] and the_books[1] is not None:
         print('Save data!')
         # не плодим записи в таблице
         # the_stats = Stats(author_count, book_count)
         the_stats = Stats.query.filter(Stats.id == 1).one()
-        the_stats.count_of_author = author_count
-        the_stats.count_of_book = book_count
+        if the_stats.count_of_author != the_author[1]:
+            the_stats.count_of_author = the_author[1]
+
+        if the_stats.count_of_book != the_books[1]:
+            the_stats.count_of_book = the_books[1]
+
         db.session.add(the_stats)
         db.session.commit()
     else:

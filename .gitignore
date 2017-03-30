@@ -2,3 +2,5 @@
 *.DC_Store
 __pycache__
 .idea
+celerybeat-schedule
+
